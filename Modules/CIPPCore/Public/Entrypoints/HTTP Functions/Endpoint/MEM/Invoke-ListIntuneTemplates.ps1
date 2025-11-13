@@ -1,5 +1,3 @@
-using namespace System.Net
-
 function Invoke-ListIntuneTemplates {
     <#
     .FUNCTIONALITY
@@ -9,11 +7,6 @@ function Invoke-ListIntuneTemplates {
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
-
-    $APIName = $Request.Params.CIPPEndpoint
-    $Headers = $Request.Headers
-    Write-LogMessage -headers $Headers -API $APIName -message 'Accessed this API' -Sev 'Debug'
-
     $Table = Get-CippTable -tablename 'templates'
     $Imported = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'settings'"
     if ($Imported.IntuneTemplate -ne $true) {
@@ -46,6 +39,7 @@ function Invoke-ListIntuneTemplates {
                 $data | Add-Member -NotePropertyName 'Type' -NotePropertyValue $JSONData.Type -Force
                 $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $_.RowKey -Force
                 $data | Add-Member -NotePropertyName 'package' -NotePropertyValue $_.Package -Force
+                $data | Add-Member -NotePropertyName 'isSynced' -NotePropertyValue (![string]::IsNullOrEmpty($_.SHA))
                 $data
             } catch {
 
@@ -89,10 +83,9 @@ function Invoke-ListIntuneTemplates {
     # Sort all output regardless of view condition
     $Templates = $Templates | Sort-Object -Property displayName
 
-    # Associate values to output bindings by calling 'Push-OutputBinding'.
-    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+    return ([HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::OK
-            Body       = ($Templates | ConvertTo-Json -Depth 100)
+            Body       = ConvertTo-Json -Depth 100 -InputObject @($Templates)
         })
 
 }
